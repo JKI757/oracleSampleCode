@@ -1,0 +1,72 @@
+#include <stdio.h>
+#include <string.h>
+#include "sqlca.h"
+
+void prtRes(int numP, int empno[], char ename[][10], float sal[]);
+void sigOff();
+void sqlErr();
+
+int main() {
+    char uid[] = "SCOTT";
+    char pwd[] = "TIGER";
+    int numRet = 0;
+    int numP = 0;
+    int empno[5];
+    char ename[5][10];
+    float sal[5];
+
+    printf("CONNECTED TO ORACLE AS USER: %s\n", uid);
+
+    SQLConnect(uid, pwd);
+
+    EXEC_SQL DECLARE C1 CURSOR FOR
+        SELECT EMPNO, ENAME, SAL FROM EMP;
+
+    EXEC_SQL OPEN C1;
+
+    EXEC_SQL WHENEVER NOT FOUND GOTO endLoop;
+
+    while (1) {
+        EXEC_SQL FETCH C1 INTO :empno[:numP], :ename[:numP], :sal[:numP];
+
+        prtRes(numP, empno, ename, sal);
+
+        numRet = sqlca.sqlerrd[2];
+        numP++;
+    }
+
+endLoop:
+    if (numP > 0) {
+        prtRes(numP, empno, ename, sal);
+    }
+
+    sigOff();
+
+    return 0;
+}
+
+void prtRes(int numP, int empno[], char ename[][10], float sal[]) {
+    printf("\nEMPLOYEE NUMBER  EMPLOYEE NAME  SALARY\n");
+    printf("----------  -----------  ---------\n");
+
+    for (int i = 0; i < numP; ++i) {
+        printf("%1d     %-10s  %.2f\n", empno[i], ename[i], sal[i]);
+    }
+}
+
+void sigOff() {
+    EXEC_SQL CLOSE C1;
+    printf("\nHAVE A GOOD DAY.\n");
+    EXEC_SQL COMMIT WORK RELEASE;
+}
+
+void sqlErr() {
+    EXEC_SQL INCLUDE SQLCA;
+    EXEC_SQL WHENEVER SQLERROR CONTINUE;
+
+    printf("\nORACLE ERROR DETECTED:\n");
+    printf("(%.*s)\n", 70, sqlca.sqlermc);
+
+    EXEC_SQL ROLLBACK WORK RELEASE;
+}
+

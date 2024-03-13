@@ -1,0 +1,96 @@
+#include <iostream>
+using namespace std;
+
+EXEC SQL BEGIN DECLARE SECTION;
+
+#define TYPE1000 1000
+struct EmpInfo {
+    int ENUM, IENUM;
+    char ENAM[10], IENAM;
+    char EJOB[9], IEJOB;
+    int EMGR, IEMGR;
+    char EDAT[10], IEDAT;
+    float ESAL, IESAL;
+    float ECOM, IECOM;
+    int EDEP, IEDEP;
+};
+#define SQLCA_STMT EXEC SQL WHENEVER NOT FOUND DO break;
+SQLCA sqlca;
+EXEC SQL END DECLARE SECTION;
+
+void logon();
+void sigoff();
+void sqler();
+
+int main() {
+    int edep;
+    EmpInfo empinfo;
+
+    logon();
+
+    EXEC SQL ALLOCATE :empinfo;
+
+    do {
+        cout << "Enter department number (0 to exit):  ";
+        cin >> edep;
+
+        if (edep <= 0) break;
+
+        EXEC SQL EXECUTE BEGIN emp_demo_pkg.open_cur(:empinfo, :edep); END;
+
+        cout << "For department " << edep << ": " << endl;
+        cout << "EMPLOYEE    SALARY      COMMISSION" << endl;
+        cout << "----------  ----------  ----------" << endl;
+
+        SQLCA_STMT {
+            EXEC SQL FETCH :empinfo INTO :empinfo.ENUM:empinfo.IENUM,
+                                         :empinfo.ENAM:empinfo.IENAM,
+                                         :empinfo.EJOB:empinfo.IEJOB,
+                                         :empinfo.EMGR:empinfo.IEMGR,
+                                         :empinfo.EDAT:empinfo.IEDAT,
+                                         :empinfo.ESAL:empinfo.IESAL,
+                                         :empinfo.ECOM:empinfo.IECOM,
+                                         :empinfo.EDEP:empinfo.IEDEP;
+            if (empinfo.IECOM == 0) {
+                cout << empinfo.ENAM << "   " << empinfo.ESAL << "    " << empinfo.ECOM << endl;
+            } else {
+                cout << empinfo.ENAM << "   " << empinfo.ESAL << "     N/A" << endl;
+            }
+        } while (1);
+
+        sigoff();
+
+    } while (1);
+
+    return 0;
+}
+
+void logon() {
+    EXEC SQL BEGIN DECLARE SECTION;
+    char uid[] = "SCOTT";
+    char pwd[] = "TIGER";
+    EXEC SQL END DECLARE SECTION;
+
+    EXEC SQL CONNECT :uid IDENTIFIED BY :pwd;
+
+    cout << "CONNECTED TO ORACLE AS USER:  SCOTT" << endl;
+}
+
+void sigoff() {
+    EXEC SQL BEGIN DECLARE SECTION;
+    EmpInfo empinfo;
+    EXEC SQL END DECLARE SECTION;
+
+    EXEC SQL CLOSE :empinfo;
+
+    cout << "HAVE A GOOD DAY." << endl;
+}
+
+void sqler() {
+    EXEC SQL INCLUDE SQLCA;
+    EXEC SQL WHENEVER SQLERROR CONTINUE;
+
+    cerr << "\nORACLE ERROR DETECTED: " << sqlca.sqlermc << endl;
+
+    EXEC SQL ROLLBACK WORK RELEASE;
+}

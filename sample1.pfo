@@ -1,0 +1,59 @@
+      PROGRAM QUERY
+            EXEC SQL BEGIN DECLARE SECTION
+            CHARACTER*10   UID
+            CHARACTER*10   PWD
+            INTEGER        EMPNO
+            CHARACTER*10   ENAME
+            REAL           SAL
+            REAL           COMM
+            INTEGER*2      ICOMM
+            EXEC SQL END DECLARE SECTION
+            INTEGER        TOTAL
+            EXEC SQL INCLUDE SQLCA
+            EXEC SQL WHENEVER SQLERROR DO CALL SQLERR
+*     LOG ON TO ORACLE.
+            UID = 'SCOTT'
+            PWD = 'TIGER'
+            EXEC SQL CONNECT :UID IDENTIFIED BY :PWD
+            PRINT *, 'CONNECTED TO ORACLE AS USER: ', UID
+*     QUERY LOOP REPEATS UNTIL THE USER ENTERS A 0
+            TOTAL = 0
+      2000  CONTINUE
+            PRINT *, '\NENTER EMPLOYEE NUMBER (0 TO QUIT): '
+            READ '(I10)', EMPNO
+            IF (EMPNO .EQ. 0) CALL SIGNOFF (TOTAL)
+            EXEC SQL WHENEVER NOT FOUND GOTO 7000
+            EXEC SQL SELECT ENAME, SAL, COMM
+            1    INTO :ENAME, :SAL, :COMM:ICOMM
+            2 FROM EMP
+            3    WHERE EMPNO = :EMPNO
+            PRINT *, 'EMPLOYEE    SALARY   COMMISSION\N',
+            +'----------  ----------  ----------'
+
+            IF (ICOMM .EQ. –1) THEN
+                  PRINT '(A10, 2X, F7.2, A12)', ENAME, SAL, '        NULL'
+                ELSE
+                  PRINT '(A10, 2X, F7.2, 5X, F7.2)', ENAME, SAL, COMM
+          END IF
+                TOTAL = TOTAL + 1
+                GOTO 2000
+          7000  CONTINUE
+                PRINT *, 'NOT A VALID EMPLOYEE NUMBER - TRY AGAIN.'
+                GOTO 2000
+                END
+                SUBROUTINE SIGNOFF (NUMQ)
+                INTEGER NUMQ
+                EXEC SQL INCLUDE SQLCA
+                PRINT *, 'TOTAL NUMBER QUERIED WAS: ', NUMQ
+                PRINT *, 'HAVE A GOOD DAY.'
+                EXEC SQL COMMIT WORK RELEASE
+                STOP
+                END
+                SUBROUTINE SQLERR
+                EXEC SQL INCLUDE SQLCA
+                EXEC SQL WHENEVER SQLERROR CONTINUE
+                PRINT *, 'ORACLE ERROR DETECTED:'
+                PRINT '(70A1)', SQLEMC
+                EXEC SQL ROLLBACK WORK RELEASE
+                STOP
+                END

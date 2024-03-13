@@ -1,0 +1,43 @@
+#include <stdio.h>
+#include <sqlca.h>
+#include <oraca.h>
+
+int main() {
+    char username[10] = "SCOTT";
+    char password[10] = "TIGER";
+    char dynstmt[80];
+    
+    ora_opt("ORACA=YES");
+    ora_opt("RELEASE_CURSOR=YES");
+    ora_sqlca.sqlcode = 0;
+    
+    if (ora_connect(username, password) != ORA_OK) {
+        printf("\n-- ORACLE ERROR:\n");
+        fprintf((stderr), "(70A)\t%s\n", sqlca.sqlerrm.sqlerrmc);
+        fprintf((stderr), "(3A, 70A)\tIN %s \n", ora_txc.ora_text);
+        fprintf((stderr), "*(3A, 70A)\tOF %s\n", ora_fname);
+        printf("*(3A, 70A)\ton line %d of %s\n", sqlca.sqlerrd[2], ora_fname);
+        if (ora_rollback() != ORA_OK) {
+            fprintf((stderr), "ora_rollback: %s\n", ora_sqlca.sqlerrm.sqlerrmc);
+        }
+        return 1;
+    }
+    
+    printf("\nCONNECTED TO ORACLE.\n");
+    printf("CREATE TABLE DYN1 (COL1 CHAR(4))\n");
+    sprintf(dynstmt, "CREATE TABLE DYN1 (COL1 CHAR(4))");
+    ora_exec_immediate(dynstmt);
+    
+    sprintf(dynstmt, "INSERT INTO DYN1 VALUES ('TEST')");
+    printf("%s\n", dynstmt);
+    ora_exec_immediate(dynstmt);
+    ora_commit();
+    
+    sprintf(dynstmt, "DROP TABLE DYN1");
+    printf("%s\n", dynstmt);
+    ora_exec_immediate(dynstmt);
+    ora_commit_release();
+    
+    printf("HAVE A GOOD DAY!\n");
+    return 0;
+}

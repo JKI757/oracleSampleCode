@@ -1,0 +1,50 @@
+#include <stdio.h>
+#include <sqlca.h>
+
+void sigoff();
+void sqlerr();
+
+EXEC SQL BEGIN DECLARE SECTION;
+  char uid[10];
+  char pwd[10];
+  char ename[10];
+  float sal, comm;
+EXEC SQL END DECLARE SECTION;
+
+int main() {
+  strcpy(uid, "SCOTT");
+  strcpy(pwd, "TIGER");
+  
+  EXEC SQL CONNECT :uid IDENTIFIED BY :pwd;
+  printf("CONNECTED TO ORACLE AS USER: %s\n", uid);
+  
+  EXEC SQL DECLARE salespeople CURSOR FOR
+    SELECT ename, sal, comm FROM emp WHERE job LIKE 'SALES%';
+  
+  EXEC SQL OPEN salespeople;
+  printf("SALESPERSON     SALARY      COMMISSION\n");
+  printf("----------      --------     -----------\n");
+  
+  while(1) {
+    EXEC SQL FETCH NEXT FROM salespeople INTO :ename, :sal, :comm;
+    if (sqlca.sqlcode != 0) break;
+    printf("%-10s %8.2f %9.2f\n", ename, sal, comm);
+  }
+  
+  sigoff();
+  
+  return 0;
+}
+
+void sigoff() {
+  EXEC SQL CLOSE salespeople;
+  printf("HAVE A GOOD DAY.\n");
+  EXEC SQL COMMIT WORK RELEASE;
+}
+
+void sqlerr() {
+  EXEC SQL WHENEVER SQLERROR CONTINUE;
+  printf("ORACLE ERROR DETECTED:\n");
+  printf("%.*s\n", sizeof(sqlca.sqlerm.sqlermc), sqlca.sqlerm.sqlermc);
+  EXEC SQL ROLLBACK WORK RELEASE;
+}

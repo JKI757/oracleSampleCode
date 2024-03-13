@@ -1,0 +1,70 @@
+#include <stdio.h>
+#include <sqlca.h>
+#include <string.h>
+
+void sigoff(int numq);
+void sqlerr();
+
+#define MAX_STR 10
+#define COMM_NULL "        NULL"
+
+EXEC SQL BEGIN DECLARE SECTION;
+    char uid[MAX_STR] = {'S', 'C', 'O', 'T', 'T', ' ', ' ', ' ', ' ', '\0'};
+    char pwd[MAX_STR] = {'T', 'I', 'G', 'E', 'R', ' ', ' ', ' ', ' ', '\0'};
+    int empno;
+    float sal, comm;
+    char ename[MAX_STR];
+    short icomm; // Oracle Pro*C requires a 2-byte integer for ICOMM variable
+EXEC SQL END DECLARE SECTION;
+
+int main() {
+    EXEC SQL WHENEVER SQLERROR DO sqlerr();
+    
+    printf("CONNECTED TO ORACLE AS USER: %s\n", uid);
+    
+    int total = 0;
+    while (1) {
+        printf("\nENTER EMPLOYEE NUMBER (0 TO QUIT): ");
+        scanf("%d", &empno);
+        
+        if (!empno) {
+            sigoff(total);
+            break;
+        }
+        
+        EXEC SQL SELECT ENAME, SAL, COMM INTO :ename, :sal, :comm FROM EMP WHERE EMPNO = :empno;
+        
+        if (sqlca.sqlcode != 0) {
+            sqlerr();
+            continue;
+        }
+
+        strcpy(ename, sqlca.sqlvar[1].value.sval);
+        sal = sqlca.sqlvar[2].value.rval;
+        
+        if (sqlca.sqlvar[3].ind == SQL_NULL) {
+            printf("%-10s  %7.2f   %s\n", ename, sal, COMM_NULL);
+        } else {
+            comm = sqlca.sqlvar[3].value.rval;
+            icomm = (short)(comm * 100) & 0xFFFF; // convert float to integer for Oracle Pro*C and ensure it fits in a short
+            printf("%-10s  %7.2f   %7.2f\n", ename, sal, comm);
+        }
+        
+        total++;
+    }
+    
+    EXEC SQL COMMIT WORK RELEASE; // Commit and release the connection when done
+    
+    return 0;
+}
+
+void sigoff(int numq) {
+    printf("\nTOTAL NUMBER QUERIED WAS: %d\n", numq);
+    printf("HAVE A GOOD DAY.\n");
+}
+
+void sqlerr() {
+    EXEC SQL ROLLBACK WORK RELEASE; // Rollback and release the connection when an error occurs
+    
+    fprintf(stderr, "\nORACLE ERROR DETECTED:\n%s\n", sqlca.sqlermc);
+}

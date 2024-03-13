@@ -1,0 +1,68 @@
+#include <stdio.h>
+#include <sqlca.h>
+
+int main() {
+   char USERNAME[10] = "SCOTT";
+   char PASSWORD[10] = "TIGER";
+   char DYNSTM[80];
+   short int EMPNO, DEPTNO1, DEPTNO2;
+   struct sqlca sqlca;
+   /* Declare cursor */
+   char SQLSTMT[500];
+   char *SQLCURSOR = (char *) malloc(sizeof(struct sqlda));
+   int RC;
+   
+   printf("CONNECTED TO ORACLE.\n");
+   sprintf(DYNSTM, "INSERT INTO EMP (EMPNO,DEPTNO) VALUES(:V1, :V2)");
+   printf("%s\n", DYNSTM);
+   EMPNO = 1234;
+   DEPTNO1 = 97;
+   printf("V1 = %d\n", EMPNO);
+   printf("V2 = %d\n", DEPTNO1);
+   
+   strcpy(SQLSTMT, DYNSTM);
+   sqlca.sqlerrd[0] = (double) SQLCURSOR;
+   RC = sqlexec(&sqlca, SQLSTMT);
+   
+   if (RC != 0 && sqlca.sqlcode != -1403) {
+      printf("SQLCODE: %d\n", sqlca.sqlcode);
+      return 1;
+   }
+   
+   EMPNO = EMPNO + 1;
+   DEPTNO2 = 99;
+   printf("CHANGED BIND VARIABLES V1 AND V2\nV1 = %d\n", EMPNO);
+   printf("V2 = %d\n", DEPTNO2);
+   
+   sprintf(DYNSTM, "INSERT INTO EMP (EMPNO,DEPTNO) VALUES(:V1, :V2)");
+   strcpy(SQLSTMT, DYNSTM);
+   sqlca.sqlerrd[0] = (double) SQLCURSOR;
+   RC = sqlexec(&sqlca, SQLSTMT);
+   
+   if (RC != 0 && sqlca.sqlcode != -1403) {
+      printf("SQLCODE: %d\n", sqlca.sqlcode);
+      return 1;
+   }
+   
+   printf("DONE, NOW DELETING...\n");
+   sprintf(DYNSTM, "DELETE FROM EMP WHERE DEPTNO = :V1 OR DEPTNO = :V2");
+   strcpy(SQLSTMT, DYNSTM);
+   sqlca.sqlerrd[0] = (double) SQLCURSOR;
+   RC = sqlexec(&sqlca, SQLSTMT);
+   
+   if (RC != 0 && sqlca.sqlcode != -1403) {
+      printf("SQLCODE: %d\n", sqlca.sqlcode);
+      return 1;
+   }
+   
+   RC = sqlca.sqlcode;
+   if (RC == 0 || RC == 1403) {
+      printf("HAVE A GOOD DAY!\n");
+   } else {
+      printf("SQLCODE: %d\n", sqlca.sqlcode);
+      return 1;
+   }
+   
+   free(SQLCURSOR);
+   return 0;
+}

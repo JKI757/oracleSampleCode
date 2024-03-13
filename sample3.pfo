@@ -1,0 +1,69 @@
+      PROGRAM ARRAYS
+      EXEC SQL BEGIN DECLARE SECTION
+      CHARACTER*10   UID
+      CHARACTER*10   PWD
+      CHARACTER*10   ENAME(5)
+      INTEGER        EMPNO(5)
+      REAL           SAL(5)
+      EXEC SQL END DECLARE SECTION
+*     NUMBER OF ROWS RETURNED, AND NUMBER TO PRINT
+      INTEGER  NUMRET
+      INTEGER  NUMP
+      EXEC SQL INCLUDE SQLCA
+      EXEC SQL WHENEVER SQLERROR DO CALL SQLERR
+*     LOG ON TO ORACLE.
+      UID = 'SCOTT'
+      PWD = 'TIGER'
+      EXEC SQL CONNECT :UID IDENTIFIED BY :PWD
+      PRINT *, 'CONNECTED TO ORACLE AS USER: ', UID
+*     DECLARE THE CURSOR, THEN OPEN IT.
+      EXEC SQL DECLARE C1 CURSOR FOR
+      1    SELECT EMPNO, ENAME, SAL
+      2 FROM EMP
+      EXEC SQL OPEN C1
+      NUMRET = 0
+*     LOOP, FETCHING AND PRINTING BATCHES,
+*     UNTIL NOT FOUND BECOMES TRUE.
+      EXEC SQL WHENEVER NOT FOUND GOTO 3000
+2000  EXEC SQL FETCH C1 INTO :EMPNO, :ENAME, :SAL
+      NUMP = SQLERD(3) – NUMRET
+      CALL PRTRES (NUMP, EMPNO, ENAME, SAL)
+      NUMRET = SQLERD(3)
+      GOTO 2000
+*     PRINT FINAL SET OF ROWS, IF ANY.
+3000  NUMP = SQLERD(3) – NUMRET
+      IF (NUMP .GT. 0) CALL PRTRES (NUMP, EMPNO, ENAME, SAL)
+      CALL SIGNOFF
+      END
+
+
+      SUBROUTINE PRTRES (NUMP, EMPNO, ENAME, SAL)
+            INTEGER        NUMP
+            INTEGER        EMPNO(NUMP)
+            CHARACTER*10   ENAME(NUMP)
+            REAL           SAL(NUMP)
+            PRINT HEADER.
+            PRINT *, 'EMPLOYEE NUMBER  EMPLOYEE NAME  SALARY\N',
+           +'----------  -----------  ---------'
+            PRINT BATCH OF ROWS.
+            DO 7000 I = 1, NUMP
+                PRINT '(1X, I4, 13X, A10, 5X, F7.2)',
+           +          EMPNO(I), ENAME(I), SAL(I)
+           7000  CONTINUE
+                 RETURN
+           END
+                 SUBROUTINE SIGNOFF
+                 EXEC SQL INCLUDE SQLCA
+                 EXEC SQL CLOSE C1
+                 PRINT *, 'HAVE A GOOD DAY.'
+                 EXEC SQL COMMIT WORK RELEASE
+                 STOP
+                 END
+                 SUBROUTINE SQLERR
+                 EXEC SQL INCLUDE SQLCA
+                 EXEC SQL WHENEVER SQLERROR CONTINUE
+                 PRINT *, 'ORACLE ERROR DETECTED:'
+                 PRINT '(70A1)', SQLEMC
+                 EXEC SQL ROLLBACK WORK RELEASE
+                 STOP
+                 END
